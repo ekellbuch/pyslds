@@ -33,7 +33,7 @@ except:
     colors = ['b', 'r', 'y', 'g', 'purple']
     cmap = get_cmap("jet")
 
-
+#%%
 from pybasicbayes.util.text import progprint_xrange
 from pylds.util import random_rotation
 from pyslds.models import DefaultSLDS
@@ -75,7 +75,7 @@ test_model = DefaultSLDS(2*K, D_obs, D_latent, D_input,
                          Ds=npr.randn(D_obs, D_input))
 test_model.add_data(y, inputs=inputs)
 
-# Initialize with Gibbs sampler
+#%% Initialize with Gibbs sampler
 print("Initializing with Gibbs")
 N_gibbs_samples = 1000
 def initialize(model):
@@ -84,7 +84,7 @@ def initialize(model):
 
 gibbs_lls = [initialize(test_model) for _ in progprint_xrange(N_gibbs_samples)]
 
-# Fit with VBEM
+#%% Fit with VBEM
 print("Fitting with VBEM")
 N_vbem_iters = 100
 def update(model):
@@ -94,6 +94,7 @@ def update(model):
 test_model._init_mf_from_gibbs()
 vbem_lls = [update(test_model) for _ in progprint_xrange(N_vbem_iters)]
 
+#%%
 # Plot the log likelihoods
 plt.figure(figsize=(5,3))
 plt.plot([0, N_gibbs_samples + N_vbem_iters], true_model.log_likelihood() * np.ones(2), '--k', label="true")
@@ -147,3 +148,5 @@ plt.xlabel("$x_1$")
 plt.ylabel("$x_2$")
 plt.title("Continuous Latent States")
 plt.show()
+
+#%%

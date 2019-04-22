@@ -13,7 +13,7 @@ from pyslds.models import HMMCountSLDS, WeakLimitStickyHDPHMMCountSLDS
 npr.seed(0)
 cmap = "jet"
 
-### Hyperparameters
+#%% Hyperparameters
 K, Kmax, D_obs, D_latent = 2, 10, 10, 2
 mu_init = np.zeros(D_latent)
 mu_init[0] = 1.0
@@ -45,14 +45,17 @@ truemodel = HMMCountSLDS(
     init_dynamics_distns=init_dynamics_distns,
     alpha=3., init_state_distn='uniform')
 
+#%%
 ### Generate data from an SLDS
 # Manually create the states object with the mask
 T = 1000
 stateseq = np.repeat(np.arange(T//100) % 2, 100).astype(np.int32)
 statesobj = truemodel._states_class(model=truemodel, T=stateseq.size, stateseq=stateseq)
-statesobj.generate_gaussian_states()
+#statesobj.generate_gaussian_states()
+statesobj.generate_states(stateseq=stateseq)
 data = statesobj.data = statesobj.generate_obs()
 
+#%%
 # Manually mask off chunks of data
 mask = np.ones_like(data, dtype=bool)
 chunksz = 50
@@ -85,6 +88,7 @@ model = WeakLimitStickyHDPHMMCountSLDS(
     alpha=3., gamma=3.0, kappa=100., init_state_distn='uniform')
 model.add_data(data=data, mask=mask)
 
+#%%
 ### Run a Gibbs sampler
 N_samples = 500
 def gibbs_update(model):
@@ -165,3 +169,4 @@ fig.suptitle("Discrete state samples")
 
 plt.show()
 
+#%%

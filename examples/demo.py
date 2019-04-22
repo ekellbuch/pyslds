@@ -13,7 +13,7 @@ from pybasicbayes.distributions import AutoRegression
 
 from pyslds.models import DefaultSLDS
 
-
+#%%
 ###################
 #  generate data  #
 ###################
@@ -35,7 +35,7 @@ plt.plot(data[:,0],data[:,1],'x-')
 plt.xlabel("$y_1$")
 plt.ylabel("$y_2$")
 
-
+#%%
 #################
 #  build model  #
 #################
@@ -53,7 +53,7 @@ model = DefaultSLDS(
 model.add_data(data)
 model.resample_states()
 
-
+#%%
 ##################
 #  run sampling  #
 ##################
@@ -83,7 +83,7 @@ plt.draw()
 plt.ion()
 plt.show()
 
-
+#%%
 print("Press Ctrl-C to stop...")
 from itertools import count
 for itr in count():
@@ -92,3 +92,5 @@ for itr in count():
     samples[itr % n_show] = model.stateseqs[0]
     im.set_array(samples[::-1])
     plt.pause(0.001)
+
+#%%

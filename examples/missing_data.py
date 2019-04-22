@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from pybasicbayes.distributions import Regression, DiagonalRegression, Gaussian
-from pybasicbayes.util.text import progprint_xrange
+#from pybasicbayes.util.text import progprint_xrange
+from tqdm import trange
 
 from pyslds.models import HMMSLDS, WeakLimitStickyHDPHMMSLDS
 
@@ -19,11 +20,11 @@ mu_init = np.zeros(D_latent)
 mu_init[0] = 1.0
 sigma_init = 0.01*np.eye(D_latent)
 
-def random_rotation(n,theta):
+def random_rotation(n, theta):
     rot = np.array([[np.cos(theta), -np.sin(theta)],
                     [np.sin(theta), np.cos(theta)]])
-    out = np.zeros((n,n))
-    out[:2,:2] = rot
+    out = np.zeros((n, n))
+    out[:2, :2] = rot
     q = np.linalg.qr(np.random.randn(n,n))[0]
     return q.dot(out).dot(q.T)
 
@@ -33,8 +34,7 @@ As = [0.99 * random_rotation(D_latent, np.pi/24.),
 
 C = np.random.randn(D_obs, D_latent)
 sigma_obs = 0.5 * np.ones(D_obs)
-
-
+#%%
 ###################
 #  generate data  #
 ###################
@@ -48,20 +48,23 @@ truemodel = HMMSLDS(
     init_dynamics_distns=init_dynamics_distns,
     alpha=3., init_state_distn='uniform')
 
+#%%
 # Manually create the states object with the mask
 T = 1000
 stateseq = np.repeat(np.arange(T//100) % 2, 100).astype(np.int32)
 statesobj = truemodel._states_class(model=truemodel, T=stateseq.size, stateseq=stateseq)
-statesobj.generate_gaussian_states()
+#statesobj.generate_gaussian_states()
+statesobj.generate_states(stateseq=stateseq)
 data = statesobj.data = statesobj.generate_obs()
 gaussian_states = statesobj.gaussian_states
 truemodel.states_list.append(statesobj)
 
+#%%
 # Mask off a chunk of data
 # mask = npr.rand(*data.shape) < 0.5
 mask = np.ones_like(data, dtype=bool)
 chunksz = 200
-for i,offset in enumerate(range(0,T,chunksz)):
+for i, offset in enumerate(range(0,T,chunksz)):
     j = i % (D_obs + 1)
     if j < D_obs:
         mask[offset:min(offset+chunksz, T), j] = False
@@ -69,6 +72,7 @@ for i,offset in enumerate(range(0,T,chunksz)):
         mask[offset:min(offset+chunksz, T), :] = False
 statesobj.mask = mask
 
+#%%
 ###############
 #  make model #
 ###############
@@ -95,15 +99,16 @@ model = HMMSLDS(
     alpha=3., init_state_distn='uniform')
 model.add_data(data=data, mask=mask)
 
+#%%
 ###############
 #  fit model  #
 ###############
 N_init_samples = 0
-for _ in progprint_xrange(N_init_samples):
+for _ in trange(N_init_samples):
     model.resample_model()
 model._init_mf_from_gibbs()
 
-N_iters = 100
+N_iters = 1000
 def update(model):
     model.VBEM_step()
     # model.meanfield_coordinate_descent_step()
@@ -111,9 +116,11 @@ def update(model):
     smoothed_obs = model.states_list[0].smooth()
     return lp, model.stateseqs[0], smoothed_obs
 
+#%%
 # Fit the model
-lls, z_smpls, smoothed_obss = zip(*[update(model) for _ in progprint_xrange(N_iters)])
+lls, z_smpls, smoothed_obss = zip(*[update(model) for _ in trange(N_iters)])
 
+#%%
 ################
 # likelihoods  #
 ################
@@ -134,7 +141,7 @@ masked_data[mask] = np.nan
 ylims = (-1.1*abs(data).max(), 1.1*abs(data).max())
 xlims = (0, min(T,1000))
 
-N_subplots = min(D_obs,4)
+N_subplots = min(D_obs, 4)
 for i in range(N_subplots):
     plt.subplot(N_subplots,1,i+1,aspect="auto")
 
@@ -155,6 +162,8 @@ for i in range(N_subplots):
     plt.xlim(xlims)
 # plt.savefig("slds_missing_data_ex.png")
 
+plt.show()
+#%%
 ################
 #  z samples   #
 ################
@@ -178,3 +187,4 @@ fig.suptitle("Discrete state samples")
 
 plt.show()
 
+#%%
