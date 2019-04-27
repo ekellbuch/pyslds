@@ -10,7 +10,7 @@ from tqdm import trange
 
 from pyslds.models import HMMSLDS, WeakLimitStickyHDPHMMSLDS
 
-npr.seed(0)
+npr.seed(1)
 
 #########################
 #  set some parameters  #
@@ -38,8 +38,11 @@ sigma_obs = 0.5 * np.ones(D_obs)
 ###################
 #  generate data  #
 ###################
+# K: x_0 ~ Normal(mu_init, sigma_init)
 init_dynamics_distns = [Gaussian(mu=mu_init, sigma=sigma_init) for _ in range(K)]
+# K : x_t ~ Normal( A_{z=k} x_t + b_{z=K}, I)
 dynamics_distns = [Regression(A=A, sigma=np.eye(D_latent)) for A in As]
+#K: y_t | x_t ~ Normal (C_{z=k} x_t + d_z{k=K}, diag(Sigma_obs))
 emission_distns = DiagonalRegression(D_obs, D_latent, A=C, sigmasq=sigma_obs)
 
 truemodel = HMMSLDS(
@@ -51,13 +54,28 @@ truemodel = HMMSLDS(
 #%%
 # Manually create the states object with the mask
 T = 1000
+# get z is T x 1
 stateseq = np.repeat(np.arange(T//100) % 2, 100).astype(np.int32)
 statesobj = truemodel._states_class(model=truemodel, T=stateseq.size, stateseq=stateseq)
 #statesobj.generate_gaussian_states()
+# class HMMSLDSStatesEigen(
+#     _SLDSStatesMaskedData,
+#     _SLDSStatesGibbs,
+#     _SLDSStatesVBEM,
+#     _SLDSStatesMeanField,
+#     HMMStatesEigen):
+#     pass
 statesobj.generate_states(stateseq=stateseq)
+# x is T x D_obs
 data = statesobj.data = statesobj.generate_obs()
+# A is T x K
 gaussian_states = statesobj.gaussian_states
 truemodel.states_list.append(statesobj)
+
+#%%
+#plt.hist(gaussian_states[:, 0])
+#plt.hist(gaussian_states[:, 1])
+#plt.show()
 
 #%%
 # Mask off a chunk of data
@@ -97,23 +115,28 @@ model = HMMSLDS(
             alpha_0=2.0, beta_0=1.0,
         ),
     alpha=3., init_state_distn='uniform')
+
+# Add data to the model
 model.add_data(data=data, mask=mask)
 
 #%%
 ###############
 #  fit model  #
 ###############
+
 N_init_samples = 0
 for _ in trange(N_init_samples):
     model.resample_model()
 model._init_mf_from_gibbs()
 
-N_iters = 1000
+#%%
+N_iters = 100
+
 def update(model):
     model.VBEM_step()
     # model.meanfield_coordinate_descent_step()
     lp = model.log_likelihood()
-    smoothed_obs = model.states_list[0].smooth()
+    smoothed_obs = model.states_list[0].smooth() # T x D_obs
     return lp, model.stateseqs[0], smoothed_obs
 
 #%%
@@ -129,7 +152,7 @@ plt.plot(lls[1:],'-b')
 plt.plot([0, N_iters - 1], truemodel.log_likelihood() * np.ones(2), '-k')
 plt.xlabel('iteration')
 plt.ylabel('log likelihood')
-
+plt.show()
 ################
 #  smoothing   #
 ################
